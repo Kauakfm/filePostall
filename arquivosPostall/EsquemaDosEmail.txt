@@ -1,0 +1,191 @@
+ try
+                        {
+                            referencia = "Alerta pedido aguardando retirada a partir do 7º dia";
+                            AlertaDePedidosAguardandoRetirada();
+                        }
+                        catch (Exception ex)
+                        { LogExcecaoDal.GravaLogExcecao(ex, referencia); }
+
+ public void AlertaDePedidosAguardandoRetirada()
+        {
+            try
+            {
+                int usuarioCodigo = 118;
+                string motivoCancelamento = "Pedido em aberto por mais de 48h";
+
+                List<long> LstCodigo7 = SuporteDal.Pesquisar<tabPedido>(c => c.pedidoStatusCodigo == 52 && DbFunctions.DiffDays(c.dataUltimaAlteracao, DateTime.Now) == 7).Select(c => c.codigo).ToList();
+                if (LstCodigo7.Count > 0)
+                    EnviarEmailAlertaPedidoAguardandoRetirada(LstCodigo7, 7);
+                List<long> LstCodigo8 = SuporteDal.Pesquisar<tabPedido>(c => c.pedidoStatusCodigo == 52 && DbFunctions.DiffDays(c.dataUltimaAlteracao, DateTime.Now) == 8).Select(c => c.codigo).ToList();
+                if (LstCodigo8.Count > 0)
+                    EnviarEmailAlertaPedidoAguardandoRetirada(LstCodigo8, 8);
+                List<long> LstCodigo9 = SuporteDal.Pesquisar<tabPedido>(c => c.pedidoStatusCodigo == 52 && DbFunctions.DiffDays(c.dataUltimaAlteracao, DateTime.Now) == 9).Select(c => c.codigo).ToList();
+                if (LstCodigo9.Count > 0)
+                    EnviarEmailAlertaPedidoAguardandoRetirada(LstCodigo9, 9);
+                List<long> LstCodigo10 = SuporteDal.Pesquisar<tabPedido>(c => c.pedidoStatusCodigo == 52 && DbFunctions.DiffDays(c.dataUltimaAlteracao, DateTime.Now) == 10).Select(c => c.codigo).ToList();
+                if (LstCodigo10.Count > 0)
+                    EnviarEmailAlertaPedidoAguardandoRetirada(LstCodigo10, 10);
+                //Caso queira cancelar pedidos com mais de dez dias aguardando retirada é so descomentar o codigo abaixo
+                //List<long> LstCodigo = SuporteDal.Pesquisar<tabPedido>(c => c.pedidoStatusCodigo == 52 && DbFunctions.DiffDays(c.dataUltimaAlteracao, DateTime.Now) > 10).Select(c => c.codigo).ToList();
+                //PedidoDal objDal = new PedidoDal();
+                //foreach (var item in LstCodigo)
+                //{
+                //    objDal.Cancelar(item, usuarioCodigo, motivoCancelamento);
+                //}
+            }
+            catch (Exception ex)
+            {
+                //LogExcecaoDal.GravaLogExcecao(ex, "Cancelar Pedido > 48");
+            }
+        }
+        public void EnviarEmailAlertaPedidoAguardandoRetirada(List<long> lstPedCod, int qtdDias)
+        {
+            try
+            {
+                SuporteHttp hs = new SuporteHttp();
+                hs.EnviarEmailPedidoAguardandoRetirada(lstPedCod, qtdDias);
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+public void EnviarEmailPedidoAguardandoRetirada(List<long> lstPedCod, int qtdDias)
+        {
+            try
+            {
+                Envios objEnvio = new Envios();
+                PedidoDal objDal = new PedidoDal();
+
+                string body = string.Empty;
+                string Remetente = "Postall-Log";
+                string tituloEmail = "";
+                tabPessoa pessoa = new tabPessoa();
+                using (Dados.GestorData ctx = new Dados.GestorData())
+                {
+                    foreach (var item in lstPedCod)
+                    {
+                        var objPed = ctx.tabPedido.FirstOrDefault(x => x.codigo == item);
+                        tituloEmail = "Alerta - Pedido " + objPed.numeroPedido + " aguardando retirada há " + qtdDias + " dias.";
+                        string bairro = "";
+                        if (!string.IsNullOrEmpty(objPed.bairro))
+                            bairro = " - " + objPed.bairro.Trim().ToUpper();
+
+                        string numero = "";
+                        if (!string.IsNullOrEmpty(objPed.numero))
+                            numero = " - " + objPed.numero.Trim().ToUpper();
+
+                        string complemento = "";
+                        if (!string.IsNullOrEmpty(objPed.complemento))
+                            complemento = " - " + objPed.complemento.Trim().ToUpper();
+
+                        string logradouro = string.Format(objPed.logradouro.Trim());
+                        var objClienteCliente = ctx.tabClienteCliente.FirstOrDefault(x => x.codigo == objPed.clienteClienteCodigo);
+                        var objPessoaClienteCliente = ctx.tabPessoa.FirstOrDefault(x => x.codigo == objClienteCliente.pessoaCodigo);
+                        var listItemPedido = ctx.tabPedidoItem.Where(x => x.pedidoCodigo == objPed.codigo).ToList();
+                        var unidadeNegocios = ctx.tabUnidadeNegocios.FirstOrDefault(x => x.codigo == objPed.unidadeNegociosCodigo);
+                        decimal totalValor = Convert.ToDecimal(listItemPedido.Sum(i => i.valorTotal));
+                        var usuario = ctx.tabUsuario.FirstOrDefault(x => x.codigo == objPed.usuarioCodigoGeracao);
+                        var objCobrancaItem = ctx.tabCobrancaItem.FirstOrDefault(x => x.pedidoCodigo == objPed.codigo);
+                        var emailAnalista = ctx.tabUsuario.FirstOrDefault(x => x.codigo == objCobrancaItem.usuarioCodigo);                        
+                        using (StreamReader reader = new StreamReader(Server.MapPath("~/TemplateEmail/EmailAlertaPedidosAguardandoRetirada.html")))
+                        {
+                            body = reader.ReadToEnd();
+                            body = body.Replace("{dataPedido}", objPed.dataPedido.ToString());
+                            body = body.Replace("{pedidoNumero}", objPed.numeroPedido.ToString());
+                            body = body.Replace("{destinatario}", objPessoaClienteCliente.nome);
+                            body = body.Replace("{logradouro}", logradouro.Trim() + numero + bairro + complemento);
+                            body = body.Replace("{cep}", objPed.cep);
+                            body = body.Replace("{cidade}", objPed.cidade + " - " + objPed.uf.Trim());
+                            body = body.Replace("{valorTotalProduto}", Suporte.GetFormatoMonetario(totalValor, false));
+                            body = body.Replace("{solicitante}", usuario.nome);
+                            body = body.Replace("{base}", unidadeNegocios.nomeBase);
+                            body = body.Replace("{descricao}", "Pedido está aguardando retirada há " + qtdDias + "dias, pedidos com mais de 10 dias podem ser cancelados sem aviso prévio.");
+
+                            StringBuilder sbTableItem = new StringBuilder();
+                            sbTableItem.Append("<table id=\"tabItem\" style=\"width:100%;\">");
+                            sbTableItem.Append("<tr>");
+                            sbTableItem.Append("<td colspan=\"9\" style=\"text-align: left;\"><h6>Itens:</h6></td>");
+                            sbTableItem.Append("</tr>");
+                            sbTableItem.Append("<tr>");
+                            sbTableItem.Append("<th>Status</th>");
+                            sbTableItem.Append("<th>Codigo</th>");
+                            sbTableItem.Append("<th>Descricao</th>");
+                            sbTableItem.Append("<th>Quantidade</th>");
+                            sbTableItem.Append("<th>Unidade Medida</th>");
+                            sbTableItem.Append("<th>(R$) Unit.</th>");
+                            sbTableItem.Append("<th>(R$) Total</th>");
+                            sbTableItem.Append("</tr>");
+
+
+                            objDal = new PedidoDal();
+
+                            dynamic objLstItemPedV1 = objDal.ListarItensPedidoV1(objPed.codigo, objPed.pedidoStatusCodigo);
+
+                            foreach (dynamic pedItem in objLstItemPedV1)
+                            {
+                                sbTableItem.Append("<tr>");
+
+                                sbTableItem.Append("<td>");
+                                sbTableItem.Append(pedItem.tipoProduto);
+                                sbTableItem.Append("</td>");
+
+                                sbTableItem.Append("<td>");
+                                sbTableItem.Append(pedItem.partnumber);
+                                sbTableItem.Append("</td>");
+
+                                sbTableItem.Append("<td>");
+                                sbTableItem.Append(pedItem.produtonome);
+                                sbTableItem.Append("</td>");
+
+                                sbTableItem.Append("<td class=\"numero\">");
+                                sbTableItem.Append(pedItem.Qtd);
+                                sbTableItem.Append("</td>");
+
+                                sbTableItem.Append("<td class=\"numero\">");
+                                sbTableItem.Append(pedItem.UnitMedida);
+                                sbTableItem.Append("</td>");
+
+                                sbTableItem.Append("<td style=\"text-align: right; padding-right: 5px;\">");
+                                sbTableItem.Append(Suporte.GetFormatoMonetario(pedItem.ValorUnit, false));
+                                sbTableItem.Append("</td>");
+
+                                sbTableItem.Append("<td style=\"text-align: right; padding-right: 5px;\">");
+                                sbTableItem.Append(Suporte.GetFormatoMonetario(pedItem.ValorTotal, false));
+                                sbTableItem.Append("</td>");
+
+                                sbTableItem.Append("</tr>");
+                            }
+                            sbTableItem.Append("</table>");
+                            body = body.Replace("{gridItem}", sbTableItem.ToString());
+                        }
+                        List<string> listaEmails = new List<string>
+                            {
+                              //1 Usuario Solicitante
+                              usuario.email,
+                              //2 Ananlista responsavel
+                              emailAnalista.email,
+                              //3 Destinatario
+                              objPessoaClienteCliente.email
+                            };
+                        objEnvio.EnviaEmailParaVarios(Remetente, listaEmails, tituloEmail, body, null, true);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
+
+Tinha o detalhezinho dessa linha : var emailAnalista = ctx.tabUsuario.FirstOrDefault(x => x.codigo == objCobrancaItem.usuarioCodigo);                        
+Pois no ambiente de teste ele tava dando que não existia cobranca para aquele pedido ai dava Null
+
+
+
+
+
+ var codigosUsuarios = new int[] { 11625, 17323, 17397 };
+                dynamic lstUsuarioInterno = SuporteDalNew.Pesquisar<tabUsuario>(x => codigosUsuarios.Contains(x.codigo)).Select(x => new {nome = x.nome, Email = x.email}).ToList(); //objUsrDal.ListarUsuarioInternoPorCliente(clienteCodigo);
+
+

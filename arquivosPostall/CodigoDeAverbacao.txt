@@ -1,0 +1,354 @@
+
+
+
+
+
+
+
+
+
+                /* var expd = ctx.tabExpedicaoItens.Where(x => x.expedicaocodigo == expedicaoCodigo).ToList();
+                var cbr = ctx.tabCobrancaItem.Where(x => expd.Any(c => x.pedidoCodigo == c.pedidocodigo)).ToList();
+                var cteE = ctx.tabCTeEmitido.Where(x => cbr.Any(c => x.cobrancaItemCodigo == c.codigo)).ToList();
+                var cteA = ctx.tabCteEmitidaAverbada.Where(x => cteE.Any(c => x.cteEmitidaCodigo == c.codigo)).ToList();
+
+                var objCompleto = (from aa in ctx.tabExpedicaoItens
+                                   join bb in ctx.tabCobrancaItem on aa.pedidocodigo equals bb.pedidoCodigo
+                                   join cc in ctx.tabCTeEmitido on bb.codigo equals cc.cobrancaItemCodigo
+                                   join dd in ctx.tabCteEmitidaAverbada on cc.codigo equals dd.cteEmitidaCodigo
+                                   where aa.expedicaocodigo == expedicaoCodigo
+                                   select new cteEmit
+                                   {
+                                       xml = cc.xmlCTe,
+                                       codigo = cc.codigo,
+                                       dataHora = dd.dataHora                                       
+                                   }).ToList();
+               */
+
+
+
+
+
+
+
+
+
+
+	create table tabCteEmitidoIntegracaoAverbacao(
+	codigo int primary key identity(1,1) not null,
+	cteEmitadaCodigo bigint foreign key references tabCteEmitada(codigo),
+	numDoc varchar(9) not null,
+	serieDoc varchar(5) not null, 
+	filialDoc varchar(5) not null, 
+	cnpjEmissor varchar(14) null,
+	linhaArq varchar(3) not null,
+	protocolo xml null,
+	erroDetalhe xml null,
+	codigoErro varchar(3),
+	valorEnviado varchar(15) null,
+	valorEsperado varchar(50) null,
+	limiteSeguro varchar(50) null,
+	)
+
+
+
+
+
+
+
+
+
+create table tabCteEmitidoIntegracaoAverbacao(
+	codigo int primary key identity(1,1) not null,
+	cteEmitadaCodigo bigint foreign key references tabcteemitido(codigo),
+	numDoc varchar(9) null,
+	serieDoc varchar(5) null, 
+	filialDoc varchar(5) null, 
+	CNPJCli varchar(14) null,
+	codTpDoc varchar(1) null,
+	infAdic varchar(25) null,
+	dhAvb datetime null,
+	numProt varchar(40) null,
+	numAverb varchar(40) null,
+	CNPJSeg varchar(14) null,
+	nomeSeg varchar(15) null,
+	numApolice varchar(32) null,
+	codTpMov varchar(1) null,
+	codTpDDR varchar(1) null,
+	valorAvb varchar(15) null,
+	codRamoAvb varchar(2) null
+	codInfo varchar(3) null,
+	descInfo varchar(300) null,
+	codErro varchar(3) null, 
+	descErro varchar(300) null,
+	valorEspe varchar(50) null,
+	valorInfo varchar(50) null
+	)
+
+
+
+
+
+
+
+
+
+
+
+
+
+ public void AverbarExpedicao(long expedicaoCodigo)
+        {
+            using (PostallEntities ctx = new PostallEntities())
+            {
+                var objCompleto = (from aa in ctx.tabPedido
+                                   join bb in ctx.tabCobrancaItem on aa.codigo equals bb.pedidoCodigo
+                                   join cc in ctx.tabCTeEmitido on bb.codigo equals cc.cobrancaItemCodigo
+                                   join dd in ctx.tabExpedicaoItens on aa.codigo equals dd.pedidocodigo 
+                                   join cteaverba in ctx.tabCteEmitidaAverbada on cc.codigo equals cteaverba.cteEmitidaCodigo into nAverba
+                                   from nAverbado in nAverba.DefaultIfEmpty()  
+                                   where dd.expedicaocodigo == expedicaoCodigo
+                                   select new cteEmit
+                                   {
+                                       codigo = cc.codigo,
+                                       xml = cc.xmlCTe,
+                                       cteEmitidoAverbado = nAverbado != null ? nAverbado.enderecoArquivo ?? string.Empty : string.Empty
+                                   }).ToList();
+
+                foreach (var item in objCompleto.Where(x => x.cteEmitidoAverbado == null))
+                {
+                    averbar(item);
+                }
+                //for (int i = 0; i < objCompleto.Count(); i++)
+                //{
+                //    if (lstAverbados.All(x => x != objCompleto[i].codigo))
+                //    {
+                //        var xmls = objCompleto[i].xml;
+                //        averbar(xmls);
+                //    }
+                //    else
+                //    {
+                //        // não quero que averbe acabou ;)
+                //    }
+            }
+        }
+
+        public void averbar(cteEmit emit)
+        {
+            #region xml teste
+            string xmlTeste = @"<CTe xmlns=""http://www.portalfiscal.inf.br/cte"">
+  <infCte versao=""2.00"" Id=""CTe35150707471771000378570000000000051747282424"">
+    <ide>
+      <cUF>35</cUF>
+      <cCT>74728242</cCT>
+      <CFOP>5353</CFOP>
+      <natOp>MATERIAL PROMOCIONAL</natOp>
+      <forPag>0</forPag>
+      <mod>57</mod>
+      <serie>0</serie>
+      <nCT>5</nCT>
+      <dhEmi>2015-07-02T18:11:55</dhEmi>
+      <tpImp>1</tpImp>
+      <tpEmis>1</tpEmis>
+      <cDV>4</cDV>
+      <tpAmb>2</tpAmb>
+      <tpCTe>0</tpCTe>
+      <procEmi>0</procEmi>
+      <verProc>2.00</verProc>
+      <refCTE>35150707471771000378570000000000051747282424</refCTE>
+      <cMunEnv>3513009</cMunEnv>
+      <xMunEnv>COTIA</xMunEnv>
+      <UFEnv>SP</UFEnv>
+      <modal>01</modal>
+      <tpServ>0</tpServ>
+      <cMunIni>3534401</cMunIni>
+      <xMunIni>OSASCO</xMunIni>
+      <UFIni>SP</UFIni>
+      <cMunFim>3534401</cMunFim>
+      <xMunFim>OSASCO</xMunFim>
+      <UFFim>SP</UFFim>
+      <retira>0</retira>
+      <xDetRetira>ENTREGA DOMICILIO</xDetRetira>
+      <toma03>
+        <toma>0</toma>
+      </toma03>
+    </ide>
+    <emit>
+      <CNPJ>07471771000378</CNPJ>
+      <IE>278202572111</IE>
+      <xNome>POSTALL TRANSPORTE ARMAZENAGEM LTDA</xNome>
+      <xFant>POSTALL TRANSPORTE ARMAZENAGEM LTDA</xFant>
+      <enderEmit>
+        <xLgr>AVENIDA JOAO PAULO ABLAS</xLgr>
+        <nro>1380</nro>
+        <xCpl>G5</xCpl>
+        <xBairro>JD DA GLORIA</xBairro>
+        <cMun>3513009</cMun>
+        <xMun>COTIA</xMun>
+        <CEP>06711250</CEP>
+        <UF>SP</UF>
+        <fone>37893260</fone>
+      </enderEmit>
+    </emit>
+    <rem>
+      <CNPJ>04156194000170</CNPJ>
+      <IE>492474382110</IE>
+      <xNome>AFFINIA AUTOMOTIVA LTDA</xNome>
+      <xFant>AFFINIA AUTOMOTIVA LTDA</xFant>
+      <fone>36044455</fone>
+      <enderReme>
+        <xLgr>AV PRESIDENTE MEDICE 939 PAVILHAO C</xLgr>
+        <nro>..</nro>
+        <xBairro>JD MUTINGA</xBairro>
+        <cMun>3534401</cMun>
+        <xMun>OSASCO</xMun>
+        <CEP>06268000</CEP>
+        <UF>SP</UF>
+        <cPais>1058</cPais>
+        <xPais>Brasil</xPais>
+      </enderReme>
+    </rem>
+    <dest>
+      <CNPJ>04156194000170</CNPJ>
+      <IE>492474382110</IE>
+      <xNome>AFFINIA AUTOMOTIVA LTDA</xNome>
+      <fone>36044455</fone>
+      <enderDest>
+        <xLgr>AV PRESIDENTE MEDICE 939 PAVILHAO C</xLgr>
+        <nro>..</nro>
+        <xBairro>JD MUTINGA</xBairro>
+        <cMun>3534401</cMun>
+        <xMun>OSASCO</xMun>
+        <CEP>06268000</CEP>
+        <UF>SP</UF>
+        <cPais>1058</cPais>
+        <xPais>Brasil</xPais>
+      </enderDest>
+    </dest>
+    <vPrest>
+      <vTPrest>29.03</vTPrest>
+      <vRec>0.00</vRec>
+      <Comp>
+        <xNome>FRETE PESO</xNome>
+        <vComp>564.12</vComp>
+      </Comp>
+    </vPrest>
+    <imp>
+      <ICMS>
+        <ICMS00>
+          <CST>00</CST>
+          <vBC>0.00</vBC>
+          <pICMS>0.00</pICMS>
+          <vICMS>0.00</vICMS>
+        </ICMS00>
+      </ICMS>
+    </imp>
+    <infCTeNorm>
+      <infCarga>
+        <vCarga>251.70</vCarga>
+        <proPred>Outros</proPred>
+        <infQ>
+          <cUnid>01</cUnid>
+          <tpMed>PESO BRUTO</tpMed>
+          <qCarga>13.1400</qCarga>
+        </infQ>
+        <infQ>
+          <cUnid>02</cUnid>
+          <tpMed>PESO TAXADO</tpMed>
+          <qCarga>0.0000</qCarga>
+        </infQ>
+        <infQ>
+          <cUnid>03</cUnid>
+          <tpMed>PESO AFERIDO</tpMed>
+          <qCarga>0.0000</qCarga>
+        </infQ>
+        <infQ>
+          <cUnid>04</cUnid>
+          <tpMed>VOLUME</tpMed>
+          <qCarga>1.0000</qCarga>
+        </infQ>
+      </infCarga>
+      <infDoc>
+        <infNFe>
+          <chave>35150607471771000378550010000005861330904358</chave>
+          <dPrev>2015-07-02</dPrev>
+        </infNFe>
+      </infDoc>
+      <seg>
+        <respSeg>4</respSeg>
+        <vCarga>251.70</vCarga>
+      </seg>
+      <infModal versaoModal=""2.00"">
+        <rodo>
+          <RNTRC>09878455</RNTRC>
+          <dPrev>2015-07-02</dPrev>
+          <lota>0</lota>
+        </rodo>
+      </infModal>
+    </infCTeNorm>
+  </infCte>
+  <Signature xmlns=""http://www.w3.org/2000/09/xmldsig#"">
+    <SignedInfo>
+      <CanonicalizationMethod Algorithm=""http://www.w3.org/TR/2001/REC-xml-c14n-20010315"" />
+      <SignatureMethod Algorithm=""http://www.w3.org/2000/09/xmldsig#rsa-sha1"" />
+      <Reference URI=""#CTe35150707471771000378570000000000051747282424"">
+        <Transforms>
+          <Transform Algorithm=""http://www.w3.org/2000/09/xmldsig#enveloped-signature"" />
+          <Transform Algorithm=""http://www.w3.org/TR/2001/REC-xml-c14n-20010315"" />
+        </Transforms>
+        <DigestMethod Algorithm=""http://www.w3.org/2000/09/xmldsig#sha1"" />
+        <DigestValue>JgguBl41o9vGAruu88bH5WJZfQk=</DigestValue>
+      </Reference>
+    </SignedInfo>
+    <SignatureValue>H05xBN5CXLpwp4dHvM4gRNzbQfooTn68iccz9GorvJeD/KZ2WRqZvvKb44RcU2s4LeA4a7AorKBxWdvL249dWJqMIHytfk+aG4cYjHEnvS5GR3TbRzs1ugc5i07Sgl1iexOHW33/KkPAsJHiO9oSvLh/qzy8Iz9dSx2650hOIEM8imYspuyNQ4bsSRTRtbCk9HljkISOAErCe9NS46n6ZVnCn55Qzg1DEAlMM9gqK3v9oLOPCmoGdN+1wbEO/FDG3xxSYgJdC7Lj+4jVWWzgIvh8WPYzQw4wWmGDWCU4SbQKOucLMCtcabDUJH1uxlinrhJm8Z6tIn1ZACumlWKsNA==</SignatureValue>
+    <KeyInfo>
+      <X509Data>
+        <X509Certificate>MIIIPTCCBiWgAwIBAgIQbvVT5nrDQNZBP/hpbzkSFDANBgkqhkiG9w0BAQsFADB0MQswCQYDVQQGEwJCUjETMBEGA1UEChMKSUNQLUJyYXNpbDEtMCsGA1UECxMkQ2VydGlzaWduIENlcnRpZmljYWRvcmEgRGlnaXRhbCBTLkEuMSEwHwYDVQQDExhBQyBDZXJ0aXNpZ24gTXVsdGlwbGEgRzUwHhcNMTQxMjE1MDAwMDAwWhcNMTUxMjE0MjM1OTU5WjCB0DELMAkGA1UEBhMCQlIxEzARBgNVBAoUCklDUC1CcmFzaWwxIDAeBgNVBAsUF0F1dGVudGljYWRvIHBvciBBUiBUQVJDMRswGQYDVQQLFBJBc3NpbmF0dXJhIFRpcG8gQTExFTATBgNVBAsUDElEIC0gNjUzODMxMjEsMCoGA1UEAxMjUE9TVEFMTCBUUkFOU1BPUlRFIEFSTUFaRU5BR0VNIExUREExKDAmBgkqhkiG9w0BCQEWGWZpc2NhbEBwb3N0YWxsLWxvZy5jb20uYnIwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCShDKMyvVCkOmF+D29V904vnTdZqPgPMnxdLP2lQhCK8qVaivJaw/qwq8IRtuX5fHDXExQezwJN9F0L98P1DQBUsbW92CRUAU2qVw+BhkMY9EKGEpx8a5fb9Gyy77rKPtnyoNDiIXkcMiiJM8SMhOy9x0MgcRo9Oreezv1wm3cgZLrO3tqlcwEcrGH68Vw/1saMFzIrf2+2vfJDKeQ/BbbYmwlfR5Mn8j150TcW7SVAd9RUvP7tJRPGME/ztGxMCI+iQo9jNe59IpbuqTuoR8bVSMZOGbEQM7SBdGp+zvEAtfmlqEjlhmV2Nn2dGTUEf78mTOsIp26yv6CAzWBLx7LAgMBAAGjggNsMIIDaDCBsgYDVR0RBIGqMIGnoD0GBWBMAQMEoDQEMjA4MDkxOTU5MDA2MDgwNDY4ODQwMDAwMDAwMDAwMDAwMDAwMDAwOTA1NDI5OVNTUFNQoBcGBWBMAQMCoA4EDEZMQVZJTyBQRU5OQaAZBgVgTAEDA6AQBA4wNzQ3MTc3MTAwMDM3OKAXBgVgTAEDB6AOBAwwMDAwMDAwMDAwMDCBGWZpc2NhbEBwb3N0YWxsLWxvZy5jb20uYnIwCQYDVR0TBAIwADAfBgNVHSMEGDAWgBSdUM+9/yTKr7Ez6xfiQnqOaSqOUzAOBgNVHQ8BAf8EBAMCBeAwgYkGA1UdIASBgTB/MH0GBmBMAQIBCzBzMHEGCCsGAQUFBwIBFmVodHRwOi8vaWNwLWJyYXNpbC5jZXJ0aXNpZ24uY29tLmJyL3JlcG9zaXRvcmlvL2RwYy9BQ19DZXJ0aXNpZ25fTXVsdGlwbGEvRFBDX0FDX0NlcnRpU2lnbk11bHRpcGxhLnBkZjCCASUGA1UdHwSCARwwggEYMFygWqBYhlZodHRwOi8vaWNwLWJyYXNpbC5jZXJ0aXNpZ24uY29tLmJyL3JlcG9zaXRvcmlvL2xjci9BQ0NlcnRpc2lnbk11bHRpcGxhRzUvTGF0ZXN0Q1JMLmNybDBboFmgV4ZVaHR0cDovL2ljcC1icmFzaWwub3V0cmFsY3IuY29tLmJyL3JlcG9zaXRvcmlvL2xjci9BQ0NlcnRpc2lnbk11bHRpcGxhRzUvTGF0ZXN0Q1JMLmNybDBboFmgV4ZVaHR0cDovL3JlcG9zaXRvcmlvLmljcGJyYXNpbC5nb3YuYnIvbGNyL0NlcnRpc2lnbi9BQ0NlcnRpc2lnbk11bHRpcGxhRzUvTGF0ZXN0Q1JMLmNybDAdBgNVHSUEFjAUBggrBgEFBQcDAgYIKwYBBQUHAwQwgaAGCCsGAQUFBwEBBIGTMIGQMGQGCCsGAQUFBzAChlhodHRwOi8vaWNwLWJyYXNpbC5jZXJ0aXNpZ24uY29tLmJyL3JlcG9zaXRvcmlvL2NlcnRpZmljYWRvcy9BQ19DZXJ0aXNpZ25fTXVsdGlwbGFfRzUucDdjMCgGCCsGAQUFBzABhhxodHRwOi8vb2NzcC5jZXJ0aXNpZ24uY29tLmJyMA0GCSqGSIb3DQEBCwUAA4ICAQCwTSgGGEHGKpgTe2uxOB60gT4eBdGiCM8Ki3ERgepTL41/nRmUXTlIA+4uXYv0v4oaTa86vZbLv9VjxY1qCoHR++754IS0VnI5Kxy40AZCRtLRJU5H8itkgOt3SKlJnqV0PGmcHergXT/Wx5yID9RRRJirh3BAVPDcZdoyf8r+UU9XF2vR0u5BqnhCdfnhPXSJ1HViS9bM0TXhSYxbQtsL2R0wk2L7i5Bm76+0ADwws0VwyytIW+7z7H6OfxK+7gapGK/Tf7FgIrxa/O3UtJgfbOgp6qJbmhjwKIJNcPbYJV9jJ7byDlPm1PHJG7HX0eFeypMHjLONi458XfsKJi5ANT/8ICDR9ErWzrHu42uLpEZ0q0vJuu7FecGzZscAyH6A4R7cV/2NYOREFYYF6tSuxJq3L8tvONAr2kxFZlXECGNpt+NqUkKHYYAb4jMRNTVfgvz/Jyfg/+0Pxf5CXrFGhAAiibamFz/5c+an0GKloEXurWgBZVTyr7ebbxQKx4GnMx4IxcoY3UezfWVVSa1mkVFDbyrjefbzumGaAUcJfFmnpBX3ah7dprwPtIR272ZhaOCBU7R1pAl1kY7H1olQ7qfzmWbnIvIG1MJ6mqql4/9Z8PPKtzO0PRjP8NBxCGmA9DeCGcS1QTWJaK2yg4SDNpPdu1wGmh967lLVNdhcWA==</X509Certificate>
+      </X509Data>
+    </KeyInfo>
+  </Signature>
+</CTe>";
+                #endregion
+
+            var objws = new br.com.averba.webserver.ATMWebSvr();
+            var resultado = objws.averbaCTe20(usuario, senha, codAtm, xmlTeste);
+
+            XmlDocument document = new XmlDocument();
+            document.LoadXml(resultado);
+            using (var reader = new StreamReader(resultado))
+            {
+                var averbado = document.GetElementsByTagName("AVERBADO");
+                var teste = document.GetElementById("TESTE");
+            var erro = document.GetElementById("ERRO");
+            if (averbado != null)
+            {
+                var serializer = new XmlSerializer(typeof(Averbado));
+                var person = (Averbado)serializer.Deserialize(reader);
+                //inserir banco falando que foi averbado
+            }
+            else if (teste != null)
+            {
+                var serializer = new XmlSerializer(typeof(teste));
+                var person = (Averbado)serializer.Deserialize(reader);
+            }
+            else if (erro != null)
+            {
+                var serializer = new XmlSerializer(typeof(Erro));
+                var person = (Averbado)serializer.Deserialize(reader);
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+2 seguro é quando ela cobra 
+3 seguro da averbacao ele so existe para colocar no Cte 
+se a transportadora não for Postall o valor deve ser 0.01
